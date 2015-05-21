@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """Charitum.py: an extensible IRC bot"""
 
 # ----------------------------------------------------------------------------
@@ -59,10 +58,7 @@ def cmd_say( self, command, params, event, received="channel" ):
                 {0} <TEXT>!X!- Say <TEXT> in current channel
                 {0} <CHANNEL> <TEXT>!X!- Say <TEXT> in channel <CHANNEL> (/msg only)"""
 
-        if received == "private":
-                self.send_message( params[0], ' '.join( params[1:] ).strip() )
-        else:
-                self.send_message( event.target, ' '.join( params ).strip() )
+        res = self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=' '.join(params), color='EEEEEE')) # substitute other color
 
 def cmd_update( self, command, params, event, received="channel" ):
         """ {0}!X!- Update the Voice/HOP/OP info manually
@@ -166,6 +162,44 @@ class Charitum( bot.SimpleBot ):
         channelusers = {}
         access = dict( ( ([ '', '+', '%', '@', '&', '~' ])[num] , num ) for num in range( 6 ) )
 
+        def setup_shouty( self, username, password ):
+            regex = re.compile(r'name="_xfToken" value="([^"]+)"')
+
+            self.session = requests.session()
+            res = self.session.post("https://hightechlowlife.eu/board/login/login", params={"login": username, "password": password})
+            res = self.session.get ("https://hightechlowlife.eu/board/forums")
+
+            token = regex.findall(res.text)[0]
+
+            self.params = {
+                "sidebar": 0,
+                "lastrefresh": 0,
+                "fake": 0,
+                "room": 1,
+                "_xfRequestUri": "/board/forums/",
+                "_xfNoRedirect": 1,
+                "_xfToken": token,
+                "_xfResponseType": "json"
+            }
+
+        def run( self ):
+            while True:
+                res = self.session.post("https://hightechlowlife.eu/board/taigachat/list.json", params=self.params)
+                result = json.loads(res.text)
+                self.params["lastrefresh"] = result["lastrefresh"]
+                soup = BeautifulSoup( result["templateHtml"] )
+
+                for li in soup.find_all('li'):
+                    if not "taigachat_message" in (li.get('id') or []):
+                        continue
+                    name = li.find(class_="username").string
+                    message = li.find(class_="taigachat_messagetext").string
+                    charitum.shoutbox(name, message)
+
+                t = time.time()
+                while time.time() < t+1:
+                    asyncore.loop(timeout=1, count=1)
+
         def add_command( self, command, level, func, short=None ):
                 """ Adds a new command. command and short are names for
                         the command, used as ![command/short] and [COMMAND/SHORT].
@@ -268,13 +302,12 @@ banners = {
         ])
 }
 
-
 ############################### RUN #################################
 
 if __name__ == "__main__":
         charitum = Charitum( "Charitum" )
+        charitum.setup_shouty( sys.argv[1], sys.argv[2] )
         charitum.connect( "irc.p2p-network.net", channel=["#ltfu"] )
-
 
         charitum.add_command( "execute", "~", cmd_exec, "exec" )
         charitum.add_command( "say", "@", cmd_say, "!" )
@@ -287,40 +320,4 @@ if __name__ == "__main__":
 
         signal.signal( signal.SIGINT,  callback_shutdown ) # register graceful shutdown here
 
-        # charitum.start()
-
-        user, pw = sys.argv[1:] # todo: CLI
-        regex = re.compile(r'name="_xfToken" value="([^"]+)"')
-
-        session = requests.session()
-        res = session.post("https://hightechlowlife.eu/board/login/login", params={"login": user, "password": pw})
-        res = session.get ("https://hightechlowlife.eu/board/forums")
-
-        token = regex.findall(res.text)[0]
-
-        lastrefresh = 0
-        while True:
-            res = session.post("https://hightechlowlife.eu/board/taigachat/list.json", params = {
-                "sidebar": 0,
-                "lastrefresh": lastrefresh,
-                "fake": 0,
-                "room": 1,
-                "_xfRequestUri": "/board/forums/",
-                "_xfNoRedirect": 1,
-                "_xfToken": token,
-                "_xfResponseType": "json"
-            })
-            result = json.loads(res.text)
-            lastrefresh = result["lastrefresh"]
-            soup = BeautifulSoup( result["templateHtml"] )
-
-            for li in soup.find_all('li'):
-                if not "taigachat_message" in (li.get('id') or []):
-                    continue
-                name = li.find(class_="username").string
-                message = li.find(class_="taigachat_messagetext").string
-                charitum.shoutbox(name, message)
-
-            t = time.time()
-            while time.time() < t+1:
-                asyncore.loop(timeout=1, count=1)
+        charitum.run()
