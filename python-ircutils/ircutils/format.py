@@ -1,5 +1,5 @@
-""" This module has tools for formatting IRC text. This includes bold, 
-underline, and reversed text. It also has the ability to add color. 
+""" This module has tools for formatting IRC text. This includes bold,
+underline, and reversed text. It also has the ability to add color.
 Additionally, it provides a means of filtering out specified formatting marks.
 """
 import re
@@ -12,15 +12,15 @@ NORMAL = "\x0F"
 COLOR_TAG = "\x03"
 
 # Color indicies
-BLACK = "1"
-NAVY_BLUE = "2"
-GREEN = "3"
-RED = "4"
-BROWN = "5"
-PURPLE = "6"
-OLIVE = "7"
-YELLOW = "8"
-LIME_GREEN = "9"
+BLACK = "01"
+NAVY_BLUE = "02"
+GREEN = "03"
+RED = "04"
+BROWN = "05"
+PURPLE = "06"
+OLIVE = "07"
+YELLOW = "08"
+LIME_GREEN = "09"
 TEAL = "10"
 AQUA = "11"
 BLUE = "12"
@@ -42,7 +42,7 @@ def filter(text, filter_type=FILTER_ALL):
     """ Removes the formatting marks from ``text``, as specified by the
     ``filter_type``. By default, ``filter_type`` is set to remove all formatting
     marks.
-        
+
     +-----------------------------+-----------------------------+
     | Options for ``filter_type``                               |
     +-----------------------------+-----------------------------+
@@ -86,7 +86,7 @@ def reversed(text):
 def color(text, foreground, background=None):
     """ Specifies a text color (and optionally a background color) for a piece
         of text being sent.
-        
+
         +----------------------------------------------------+
         | Available color options                            |
         +===========================+========================+
