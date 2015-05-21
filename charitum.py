@@ -317,13 +317,10 @@ if __name__ == "__main__":
             for li in soup.find_all('li'):
                 if not "taigachat_message" in (li.get('id') or []):
                     continue
-                #date = "???"
-                #if li.find(class_="taigachat_absolute_timestamp"):
-                #    date = li.find(class_="taigachat_absolute_timestamp").string[:-3]
                 name = li.find(class_="username").string
                 message = li.find(class_="taigachat_messagetext").string
                 charitum.shoutbox(name, message)
 
-            t = time.monotonic()
-            while time.monotonic() < t+1:
+            t = time.time()
+            while time.time() < t+1:
                 asyncore.loop(timeout=1, count=1)
