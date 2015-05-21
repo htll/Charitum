@@ -213,8 +213,8 @@ class Charitum( bot.SimpleBot ):
                 for li in soup.find_all('li'):
                     if not "taigachat_message" in (li.get('id') or []):
                         continue
-                    name = li.find(class_="username").string
-                    message = li.find(class_="taigachat_messagetext").string
+                    name = li.find(class_="username").text
+                    message = li.find(class_="taigachat_messagetext").text
                     charitum.shoutbox(name, message)
 
                 t = time.time()
