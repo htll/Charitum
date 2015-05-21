@@ -15,12 +15,15 @@ __license__ = "BEER-Ware license"
 __version__ = "1.4.4"
 
 
+import re
 import sys
-import signal
+import json
 import time
+import signal
 import requests
-#import urllib2
-#import urllib
+import asyncore
+from bs4 import BeautifulSoup
+
 from ircutils import bot, format, protocol
 
 ############################## EVENTS ###############################
@@ -237,6 +240,9 @@ class Charitum( bot.SimpleBot ):
                                 self.send_message( event.source, format.color( "ERROR:", format.RED ) + " You are not allowed to use the " + format.bold( command ) + " Command" )
                                 return
                         func( self, command, params, event, received="private" ) # tell the function this was a private message and call it
+        def shoutbox(self, name, message):
+            if self.is_connected():
+                self.send_message( "#ltfu", "{}: {}".format(format.color(name, format.RED), message) )
 
 
 banners = {
@@ -281,4 +287,43 @@ if __name__ == "__main__":
 
         signal.signal( signal.SIGINT,  callback_shutdown ) # register graceful shutdown here
 
-        charitum.start()
+        # charitum.start()
+
+        user, pw = sys.argv[1:] # todo: CLI
+        regex = re.compile(r'name="_xfToken" value="([^"]+)"')
+
+        session = requests.session()
+        res = session.post("https://hightechlowlife.eu/board/login/login", params={"login": user, "password": pw})
+        res = session.get ("https://hightechlowlife.eu/board/forums")
+
+        token = regex.findall(res.text)[0]
+
+        lastrefresh = 0
+        while True:
+            res = session.post("https://hightechlowlife.eu/board/taigachat/list.json", params = {
+                "sidebar": 0,
+                "lastrefresh": lastrefresh,
+                "fake": 0,
+                "room": 1,
+                "_xfRequestUri": "/board/forums/",
+                "_xfNoRedirect": 1,
+                "_xfToken": token,
+                "_xfResponseType": "json"
+            })
+            result = json.loads(res.text)
+            lastrefresh = result["lastrefresh"]
+            soup = BeautifulSoup( result["templateHtml"] )
+
+            for li in soup.find_all('li'):
+                if not "taigachat_message" in (li.get('id') or []):
+                    continue
+                #date = "???"
+                #if li.find(class_="taigachat_absolute_timestamp"):
+                #    date = li.find(class_="taigachat_absolute_timestamp").string[:-3]
+                name = li.find(class_="username").string
+                message = li.find(class_="taigachat_messagetext").string
+                charitum.shoutbox(name, message)
+
+            t = time.monotonic()
+            while time.monotonic() < t+1:
+                asyncore.loop(timeout=1, count=1)
