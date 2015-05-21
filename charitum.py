@@ -92,9 +92,9 @@ def cmd_shout( self, command, params, event, received="channel" ):
                 {0} <TEXT>!X!- Shout <TEXT> in current channel
                 {0} <CHANNEL> <TEXT>!X!- Shout <TEXT> in channel <CHANNEL> (/msg only)"""
 
-        colors = [ format.GREEN, format.RED, format.AQUA, format.YELLOW, format.PINK, format.PURPLE, format.TEAL, format.LIGHT_GRAY ]
+        colors = [ format.GREEN, format.RED, format.AQUA, format.PINK, format.LIGHT_GRAY ]
         if received == "private":
-                for color, bg in [(x,y) for x in colors for y in colors]:
+                for color, bg in [(x,y) for x in colors for y in colors if not x == y]:
                         self.send_message( params[0], format.color( ' '.join( params[1:] ).strip(), color, bg ) )
                         time.sleep( 0.5 )
         else:
@@ -319,11 +319,11 @@ if __name__ == "__main__":
                     continue
                 #date = "???"
                 #if li.find(class_="taigachat_absolute_timestamp"):
-                #    date = li.find(class_="taigachat_absolute_timestamp").string[:-3]
-                name = li.find(class_="username").string
-                message = li.find(class_="taigachat_messagetext").string
+                #    date = li.find(class_="taigachat_absolute_timestamp").text[:-3]
+                name = li.find(class_="username").text
+                message = li.find(class_="taigachat_messagetext").text
                 charitum.shoutbox(name, message)
 
-            t = time.monotonic()
-            while time.monotonic() < t+1:
+            t = time.time()
+            while time.time() < t+1:
                 asyncore.loop(timeout=1, count=1)
