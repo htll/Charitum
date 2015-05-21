@@ -54,11 +54,28 @@ def cmd_exec( self, command, params, event, received="channel" ):
                 self.send_message( event.source, "Executed" + format.bold( params[0].upper() + ' '.join( params[1:] ) ) )
 
 def cmd_say( self, command, params, event, received="channel" ):
-        """ {0}!X!- Say a Text
-                {0} <TEXT>!X!- Say <TEXT> in current channel
-                {0} <CHANNEL> <TEXT>!X!- Say <TEXT> in channel <CHANNEL> (/msg only)"""
+        """ {0}!X!- Send text to the shoutbox
+                {0} <TEXT>!X!- Say <TEXT> in the shoutbox"""
 
         res = self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=' '.join(params), color='EEEEEE')) # substitute other color
+
+def cmd_mutesb( self, command, params, event, received="channel" ):
+        """ {0}!X!- Toggle the shoutbox echo for this channel
+                {0} <CHANNEL> !X!- Toggle the shoutbox echo for <CHANNEL> (/msg only)"""
+
+        chan = event.target
+        if len(params) > 0:
+                chan = params[0]
+
+        if chan not in self.channels:
+                self.send_message( event.target, "'{}' is not a valid channel".format(chan) )
+                return
+
+        self.muted[chan] = (chan not in self.muted) or (not self.muted[chan])
+        text = "ON"
+        if self.muted[chan]:
+                text = "OFF"
+        self.send_message( chan, "Shoutbox echoing is now toggled {}".format(format.color(text, format.RED)) )
 
 def cmd_update( self, command, params, event, received="channel" ):
         """ {0}!X!- Update the Voice/HOP/OP info manually
@@ -88,7 +105,7 @@ def cmd_shout( self, command, params, event, received="channel" ):
                 {0} <TEXT>!X!- Shout <TEXT> in current channel
                 {0} <CHANNEL> <TEXT>!X!- Shout <TEXT> in channel <CHANNEL> (/msg only)"""
 
-        colors = [ format.GREEN, format.RED, format.AQUA, format.PINK, format.LIGHT_GRAY ]
+        colors = [ format.GREEN, format.RED, format.AQUA ]
         if received == "private":
                 for color, bg in [(x,y) for x in colors for y in colors if not x == y]:
                         self.send_message( params[0], format.color( ' '.join( params[1:] ).strip(), color, bg ) )
@@ -182,8 +199,12 @@ class Charitum( bot.SimpleBot ):
                 "_xfResponseType": "json"
             }
 
+            self.muted = {}
+
         def run( self ):
+            i = 0
             while True:
+                i += 1
                 res = self.session.post("https://hightechlowlife.eu/board/taigachat/list.json", params=self.params)
                 result = json.loads(res.text)
                 self.params["lastrefresh"] = result["lastrefresh"]
@@ -199,6 +220,9 @@ class Charitum( bot.SimpleBot ):
                 t = time.time()
                 while time.time() < t+1:
                     asyncore.loop(timeout=1, count=1)
+                if i > 4:
+                    for chan in self.channels:
+                        self.execute( "NAMES", chan ) # update permissions
 
         def add_command( self, command, level, func, short=None ):
                 """ Adds a new command. command and short are names for
@@ -239,7 +263,6 @@ class Charitum( bot.SimpleBot ):
                 if command[0] == "!": # only handle commands directed to us...
                         command =  command[1:].lower()
                         if command in self.commands: # ... that exist
-                                self.execute( "NAMES", event.target ) # update permissions
                                 ( level, func ) = self.commands[ command ]
 
                                 for name in self.channelusers[ event.target ]:
@@ -260,10 +283,9 @@ class Charitum( bot.SimpleBot ):
                 params  = message[1:]
 
                 if command.lower() in self.commands:
-                        self.execute( "NAMES", "#ltfu" ) # update permissions
                         ( level, func ) = self.commands[ command.lower() ]
 
-                        for name in self.channelusers[ "#ltfu" ]:
+                        for name in self.channelusers[next(iter(self.channels))]: # FIXME: random channel
                                 if protocol.strip_name_symbol( name ) == event.source: break # name is now event.target's name
 
                         ulevel = 0
@@ -274,9 +296,12 @@ class Charitum( bot.SimpleBot ):
                                 self.send_message( event.source, format.color( "ERROR:", format.RED ) + " You are not allowed to use the " + format.bold( command ) + " Command" )
                                 return
                         func( self, command, params, event, received="private" ) # tell the function this was a private message and call it
+
         def shoutbox(self, name, message):
             if self.is_connected():
-                self.send_message( "#ltfu", "{}: {}".format(format.color(name, format.RED), message) )
+                for chan in self.channels:
+                    if (chan not in self.muted) or (not self.muted[chan]):
+                        self.send_message( chan, "{}: {}".format(format.color(name, format.RED), message) )
 
 
 banners = {
@@ -307,9 +332,9 @@ banners = {
 if __name__ == "__main__":
         charitum = Charitum( "Charitum" )
         charitum.setup_shouty( sys.argv[1], sys.argv[2] )
-        charitum.connect( "irc.p2p-network.net", channel=["#ltfu"] )
+        charitum.connect( "irc.p2p-network.net", channel=["#ltfuckyou"] )
 
-        charitum.add_command( "execute", "~", cmd_exec, "exec" )
+        # charitum.add_command( "execute", "~", cmd_exec, "exec" )
         charitum.add_command( "say", "@", cmd_say, "!" )
         charitum.add_command( "shout", "@", cmd_shout, "!!" )
         charitum.add_command( "kick", "@", cmd_kick )
@@ -317,6 +342,7 @@ if __name__ == "__main__":
         charitum.add_command( "banner", "", cmd_banner )
         charitum.add_command( "update", "", cmd_update, "upd" )
         charitum.add_command( "help", "", cmd_help )
+        charitum.add_command( "mutesb", "", cmd_mutesb )
 
         signal.signal( signal.SIGINT,  callback_shutdown ) # register graceful shutdown here
 
