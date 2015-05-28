@@ -173,12 +173,10 @@ def cmd_banner( self, command, params, event, received="channel" ):
                 time.sleep( 0.5 )
 
 ############################### BOT #################################
-
 class Charitum( bot.SimpleBot ):
         commands = {}
         channelusers = {}
         access = dict( ( ([ '', '+', '%', '@', '&', '~' ])[num] , num ) for num in range( 6 ) )
-
         def setup_shouty( self, username, password ):
             regex = re.compile(r'name="_xfToken" value="([^"]+)"')
 
@@ -203,6 +201,7 @@ class Charitum( bot.SimpleBot ):
 
         def run( self ):
             i = 0
+            old_threads = []
             while True:
                 i += 1
                 res = self.session.post("https://hightechlowlife.eu/board/taigachat/list.json", params=self.params)
@@ -213,16 +212,33 @@ class Charitum( bot.SimpleBot ):
                 for li in soup.find_all('li'):
                     if not "taigachat_message" in (li.get('id') or []):
                         continue
-                    name = li.find(class_="username").string
-                    message = li.find(class_="taigachat_messagetext").string
-                    charitum.shoutbox(name, message)
+                    name = li.find(class_="username").text
+                    message = li.find(class_="taigachat_messagetext").text
+                    if self.is_connected():
+                        for chan in self.channels:
+                            if (chan not in self.muted) or (not self.muted[chan]):
+                                self.send_message( chan, "{}: {}".format(format.color(name, format.RED), message) )
+
+                res = self.session.get("https://hightechlowlife.eu/board/forums")
+                soup = BeautifulSoup(res.text)
+                for thread in soup.find_all("li", class_="discussionListItem"):
+                    url = thread.find(class_="PreviewTooltip")["href"]
+                    user = thread.find(class_="username").text
+                    title = thread.find(class_="PreviewTooltip").text
+                    posts = thread.find("dl", class_="major").find("dd").text
+
+                    if posts == "0" and not thread in old_threads:
+                        for chan in self.channels:
+                            charitum.send_message(chan, "{} opened a new thread: [https://hightechlowlife.eu/board/{}]".format(user, url))
+                            charitum.send_message(chan, "   " + format.color(title, format.GREEN))
+                        old_threads.append(thread)
 
                 t = time.time()
                 while time.time() < t+1:
                     asyncore.loop(timeout=1, count=1)
                 if i > 4:
                     for chan in self.channels:
-                        self.execute( "NAMES", chan ) # update permissions
+                        self.execute("NAMES", chan) # update permissions
 
         def add_command( self, command, level, func, short=None ):
                 """ Adds a new command. command and short are names for
@@ -297,13 +313,6 @@ class Charitum( bot.SimpleBot ):
                                 return
                         func( self, command, params, event, received="private" ) # tell the function this was a private message and call it
 
-        def shoutbox(self, name, message):
-            if self.is_connected():
-                for chan in self.channels:
-                    if (chan not in self.muted) or (not self.muted[chan]):
-                        self.send_message( chan, "{}: {}".format(format.color(name, format.RED), message) )
-
-
 banners = {
 "blame_end": ( format.RED, [
         "                                                                       ",
@@ -333,7 +342,6 @@ if __name__ == "__main__":
         charitum = Charitum( "Charitum" )
         charitum.setup_shouty( sys.argv[1], sys.argv[2] )
         charitum.connect( "irc.p2p-network.net", channel=["#ltfuckyou"] )
-
         # charitum.add_command( "execute", "~", cmd_exec, "exec" )
         charitum.add_command( "say", "@", cmd_say, "!" )
         charitum.add_command( "shout", "@", cmd_shout, "!!" )
