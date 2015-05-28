@@ -227,13 +227,13 @@ class Charitum( bot.SimpleBot ):
                     title = thread.find(class_="PreviewTooltip").text
                     posts = thread.find("dl", class_="major").find("dd").text
 
-                    if posts == "0" and not thread in old_threads:
+                    if posts == "0" and not url in old_threads:
                         for chan in self.channels:
                             charitum.send_message(chan, "{} opened a new thread: [https://hightechlowlife.eu/board/{}]".format(user, url))
                             charitum.send_message(chan, "   " + format.color(title, format.GREEN))
                         shoutytext = "a new thread was posted by {}: [URL=https://hightechlowlife.eu/board/{}]{}[/URL]".format(user, url, title)
                         self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=shoutytext, color='EEEEEE'))
-                        old_threads.append(thread)
+                        old_threads.append(url)
 
                 t = time.time()
                 while time.time() < t+1:
