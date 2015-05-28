@@ -57,7 +57,7 @@ def cmd_say( self, command, params, event, received="channel" ):
         """ {0}!X!- Send text to the shoutbox
                 {0} <TEXT>!X!- Say <TEXT> in the shoutbox"""
 
-        res = self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=' '.join(params), color='EEEEEE')) # substitute other color
+        self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=' '.join(params), color='EEEEEE'))
 
 def cmd_mutesb( self, command, params, event, received="channel" ):
         """ {0}!X!- Toggle the shoutbox echo for this channel
@@ -214,7 +214,7 @@ class Charitum( bot.SimpleBot ):
                         continue
                     name = li.find(class_="username").text
                     message = li.find(class_="taigachat_messagetext").text
-                    if self.is_connected():
+                    if self.is_connected() and "a new thread was posted by" not in message:
                         for chan in self.channels:
                             if (chan not in self.muted) or (not self.muted[chan]):
                                 self.send_message( chan, "{}: {}".format(format.color(name, format.RED), message) )
@@ -231,6 +231,8 @@ class Charitum( bot.SimpleBot ):
                         for chan in self.channels:
                             charitum.send_message(chan, "{} opened a new thread: [https://hightechlowlife.eu/board/{}]".format(user, url))
                             charitum.send_message(chan, "   " + format.color(title, format.GREEN))
+                        shoutytext = "a new thread was posted by {}: [URL=https://hightechlowlife.eu/board/{}]{}[/URL]".format(user, url, title)
+                        self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=shoutytext, color='EEEEEE'))
                         old_threads.append(thread)
 
                 t = time.time()
@@ -341,7 +343,7 @@ banners = {
 if __name__ == "__main__":
         charitum = Charitum( "Charitum" )
         charitum.setup_shouty( sys.argv[1], sys.argv[2] )
-        charitum.connect( "irc.p2p-network.net", channel=["#ltfuckyou"] )
+        charitum.connect( "irc.p2p-network.net", channel=sys.argv[3:] )
         # charitum.add_command( "execute", "~", cmd_exec, "exec" )
         charitum.add_command( "say", "@", cmd_say, "!" )
         charitum.add_command( "shout", "@", cmd_shout, "!!" )
