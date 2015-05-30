@@ -201,47 +201,61 @@ class Charitum( bot.SimpleBot ):
             self.muted = {}
 
         def run( self ):
-            i = 0
-            old_threads = []
-            while True:
-                i += 1
-                res = self.session.post("https://hightechlowlife.eu/board/taigachat/list.json", params=self.params)
-                result = json.loads(res.text)
-                self.params["lastrefresh"] = result["lastrefresh"]
-                soup = BeautifulSoup( result["templateHtml"] )
-
-                for li in soup.find_all('li'):
-                    if not "taigachat_message" in (li.get('id') or []):
-                        continue
-                    name = li.find(class_="username").text
-                    message = li.find(class_="taigachat_messagetext").text
-                    if self.is_connected() and "a new thread was posted by" not in message:
-                        for chan in self.channels:
-                            if (chan not in self.muted) or (not self.muted[chan]):
-                                self.send_message( chan, "{}: {}".format(format.color(name, format.RED), message) )
+                i = 0
+                old_threads = []
 
                 res = self.session.get("https://hightechlowlife.eu/board/forums")
                 soup = BeautifulSoup(res.text)
                 for thread in soup.find_all("li", class_="discussionListItem"):
-                    url = thread.find(class_="PreviewTooltip")["href"]
-                    user = thread.find(class_="username").text
-                    title = thread.find(class_="PreviewTooltip").text
-                    posts = thread.find("dl", class_="major").find("dd").text
+                        url = thread.find(class_="PreviewTooltip")["href"]
+                        user = thread.find(class_="username").text
+                        title = thread.find(class_="PreviewTooltip").text
+                        posts = thread.find("dl", class_="major").find("dd").text
 
-                    if posts == "0" and not url in old_threads:
-                        for chan in self.channels:
-                            charitum.send_message(chan, "{} opened a new thread: [https://hightechlowlife.eu/board/{}]".format(user, url))
-                            charitum.send_message(chan, "   " + format.color(title, format.GREEN))
-                        shoutytext = "a new thread was posted by {}: [URL=https://hightechlowlife.eu/board/{}]{}[/URL]".format(user, url, title)
-                        self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=shoutytext, color='EEEEEE'))
-                        old_threads.append(url)
+                        if posts == "0" and not url in old_threads:
+                                old_threads.append(url)
 
-                t = time.time()
-                while time.time() < t+1:
-                    asyncore.loop(timeout=1, count=1)
-                if i > 4:
-                    for chan in self.channels:
-                        self.execute("NAMES", chan) # update permissions
+                while True:
+                        i += 1
+                        res = self.session.post("https://hightechlowlife.eu/board/taigachat/list.json", params=self.params)
+                        result = json.loads(res.text)
+                        self.params["lastrefresh"] = result["lastrefresh"]
+                        soup = BeautifulSoup( result["templateHtml"] )
+
+                        for li in soup.find_all('li'):
+                                if not "taigachat_message" in (li.get('id') or []):
+                                        continue
+                                name = li.find(class_="username").text
+                                message = li.find(class_="taigachat_messagetext").text
+                                if self.is_connected() and "a new thread was posted by" not in message:
+                                        for chan in self.channels:
+                                                if (chan not in self.muted) or (not self.muted[chan]):
+                                                        self.send_message( chan, "{}: {}".format(format.color(name, format.RED), message) )
+
+                        res = self.session.get("https://hightechlowlife.eu/board/forums")
+                        soup = BeautifulSoup(res.text)
+                        for thread in soup.find_all("li", class_="discussionListItem"):
+                                url = thread.find(class_="PreviewTooltip")["href"]
+                                user = thread.find(class_="username").text
+                                title = thread.find(class_="PreviewTooltip").text
+                                posts = thread.find("dl", class_="major").find("dd").text
+
+                                if posts == "0" and not url in old_threads:
+                                        old_threads.append(url)
+                                        shoutytext = "a new thread was posted by {}: [URL=https://hightechlowlife.eu/board/{}]{}[/URL]".format(user, url, title)
+                                        self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=shoutytext, color='EEEEEE'))
+                                        for chan in self.channels:
+                                                charitum.send_message(chan, "{} opened a new thread: [https://hightechlowlife.eu/board/{}]".format(user, url))
+                                                charitum.send_message(chan, "   " + format.color(title, format.GREEN))
+
+                        print("--")
+                        t = time.time()
+                        while time.time() < t+1:
+                                print("asyn")
+                                asyncore.loop(timeout=1, count=1)
+                        if i > 4:
+                                for chan in self.channels:
+                                        self.execute("NAMES", chan) # update permissions
 
         def add_command( self, command, level, func, short=None ):
                 """ Adds a new command. command and short are names for
