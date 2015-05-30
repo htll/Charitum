@@ -233,7 +233,7 @@ class Charitum( bot.SimpleBot ):
                             charitum.send_message(chan, "{} opened a new thread: [https://hightechlowlife.eu/board/{}]".format(user, url))
                             charitum.send_message(chan, "   " + format.color(title, format.GREEN))
                         shoutytext = "a new thread was posted by {}: [URL=https://hightechlowlife.eu/board/{}]{}[/URL]".format(user, url, title)
-                        # self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=shoutytext, color='EEEEEE'))
+                        self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=shoutytext, color='EEEEEE'))
                         old_threads.append(url)
 
                 t = time.time()
