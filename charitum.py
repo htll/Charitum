@@ -13,7 +13,6 @@ __copyright__ = "S0lll0s aka Sol Bekic"
 __license__ = "BEER-Ware license"
 __version__ = "1.4.4"
 
-
 import re
 import sys
 import json
@@ -174,9 +173,11 @@ def cmd_banner( self, command, params, event, received="channel" ):
 
 ############################### BOT #################################
 class Charitum( bot.SimpleBot ):
+        tell = {}
         commands = {}
         channelusers = {}
         access = dict( ( ([ '', '+', '%', '@', '&', '~' ])[num] , num ) for num in range( 6 ) )
+
         def setup_shouty( self, username, password ):
             regex = re.compile(r'name="_xfToken" value="([^"]+)"')
 
@@ -232,7 +233,7 @@ class Charitum( bot.SimpleBot ):
                             charitum.send_message(chan, "{} opened a new thread: [https://hightechlowlife.eu/board/{}]".format(user, url))
                             charitum.send_message(chan, "   " + format.color(title, format.GREEN))
                         shoutytext = "a new thread was posted by {}: [URL=https://hightechlowlife.eu/board/{}]{}[/URL]".format(user, url, title)
-                        self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=shoutytext, color='EEEEEE'))
+                        # self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=shoutytext, color='EEEEEE'))
                         old_threads.append(url)
 
                 t = time.time()
@@ -270,15 +271,31 @@ class Charitum( bot.SimpleBot ):
                 if event.source != self.nickname: # don't welcome yourself
                         self.send_message( event.target, "Welcome to " + format.color( format.bold( ' LTFU :' ), format.BLACK, format.LIGHT_GRAY ) + format.color( ': hangout ', format.WHITE, format.GREEN ) + ", " +  format.bold( event.source ) )
 
+                if event.source in self.tell and self.tell[event.source] != False:
+                        for m in self.tell[event.source]:
+                                self.send_message( m[1], "[{}] {}".format(time.strftime("%H:%M", (m[0])), m[2]) )
+
+                self.tell[event.source] = False # False = online but known
+
+        def on_quit( self, event ):
+                self.tell[event.source] = []
+
+        def on_part( self, event ):
+                self.tell[event.source] = []
+
+        tellre = re.compile("^@ ?([a-zA-Z0-9-_]*) ?: ")
         def on_channel_message( self, event ):
                 message = event.message.split()
                 command = message[0]
                 params  = message[1:]
 
-                if len( command ) == 1: # skip single !'s and stuff
-                        return
+                if event.source not in self.tell:
+                        self.tell[event.source] = False
 
                 if command[0] == "!": # only handle commands directed to us...
+                        if len( command ) == 1: # skip single !'s and stuff
+                                return
+
                         command =  command[1:].lower()
                         if command in self.commands: # ... that exist
                                 ( level, func ) = self.commands[ command ]
@@ -294,11 +311,20 @@ class Charitum( bot.SimpleBot ):
                                         self.send_message( event.target, format.color( "ERROR:", format.RED ) + " You are not allowed to use the " + format.bold( command ) + " Command" )
                                         return
                                 func( self, command, params, event )
+                elif self.tellre.match(event.message):
+                        nick = self.tellre.match(event.message).groups()[0]
+
+                        if nick in self.tell and self.tell[nick] != False: # known but nont online
+                                self.tell[nick].append((time.gmtime(), event.target, "{}: {}".format(event.source, format.color(event.message, format.GREEN))))
+                                self.send_message(event.target, "I'll pass that on to {}".format(nick))
 
         def on_private_message( self, event ):
                 message = event.message.split()
                 command = message[0].upper()
                 params  = message[1:]
+
+                if event.source not in self.tell:
+                        self.tell[event.source] = False
 
                 if command.lower() in self.commands:
                         ( level, func ) = self.commands[ command.lower() ]
