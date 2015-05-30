@@ -251,7 +251,6 @@ class Charitum( bot.SimpleBot ):
                         print("--")
                         t = time.time()
                         while time.time() < t+1:
-                                print("asyn")
                                 asyncore.loop(timeout=1, count=1)
                         if i > 4:
                                 for chan in self.channels:
