@@ -192,7 +192,7 @@ class Charitum( bot.SimpleBot ):
                     "sidebar": 0,
                     "lastrefresh": 0,
                     "fake": 0,
-                    "room": 2,
+                    "room": 1,
                     "_xfRequestUri": "/board/forums/",
                     "_xfNoRedirect": 1,
                     "_xfToken": token,
@@ -230,6 +230,7 @@ class Charitum( bot.SimpleBot ):
                                         for chan in self.channels:
                                                 if (chan not in self.muted) or (not self.muted[chan]):
                                                         self.send_ctcp(chan, "ACTION", ["{}: {}".format(format.color(name, format.RED), message)])
+
                         if log_threads:
                                 res = self.session.get(base + "/forums")
                                 soup = BeautifulSoup(res.text)
@@ -376,7 +377,6 @@ banners = {
 }
 
 ############################### RUN #################################
-
 if __name__ == "__main__":
         parser = argparse.ArgumentParser()
         parser.add_argument(
@@ -409,20 +409,21 @@ if __name__ == "__main__":
         )
         args = parser.parse_args()
 
+        signal.signal( signal.SIGINT,  callback_shutdown ) # register graceful shutdown here
+
         charitum = Charitum( args.nick )
-        charitum.connect( "irc.p2p-network.net", channel=args.channel )
-        # charitum.add_command( "execute", "~", cmd_exec, "exec" )
         charitum.add_command( "shout", "@", cmd_shout, "!!" )
         charitum.add_command( "kick", "@", cmd_kick )
         charitum.add_command( "op", "@", cmd_op )
         charitum.add_command( "banner", "", cmd_banner )
         charitum.add_command( "update", "", cmd_update, "upd" )
         charitum.add_command( "help", "", cmd_help )
+        # charitum.add_command( "execute", "~", cmd_exec, "exec" )
+
+        charitum.connect( "irc.p2p-network.net", channel=args.channel )
         if args.user and args.passw:
             charitum.add_command( "mutesb", "", cmd_mutesb )
             charitum.add_command( "say", "@", cmd_say, "!" )
-
-        signal.signal( signal.SIGINT,  callback_shutdown ) # register graceful shutdown here
 
         if args.user and args.passw:
             print("Starting with taigachat bridge enabled")
