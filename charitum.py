@@ -191,7 +191,7 @@ class Charitum( bot.SimpleBot ):
                 "sidebar": 0,
                 "lastrefresh": 0,
                 "fake": 0,
-                "room": 1,
+                "room": 2,
                 "_xfRequestUri": "/board/forums/",
                 "_xfNoRedirect": 1,
                 "_xfToken": token,
@@ -230,7 +230,7 @@ class Charitum( bot.SimpleBot ):
                                 if self.is_connected() and "a new thread was posted by" not in message:
                                         for chan in self.channels:
                                                 if (chan not in self.muted) or (not self.muted[chan]):
-                                                        self.send_message( chan, "{}: {}".format(format.color(name, format.RED), message) )
+                                                        self.send_ctcp(chan, "ACTION", ["{}: {}".format(format.color(name, format.RED), message)])
 
                         res = self.session.get("https://hightechlowlife.eu/board/forums")
                         soup = BeautifulSoup(res.text)
@@ -245,10 +245,9 @@ class Charitum( bot.SimpleBot ):
                                         shoutytext = "a new thread was posted by {}: [URL=https://hightechlowlife.eu/board/{}]{}[/URL]".format(user, url, title)
                                         self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=shoutytext, color='EEEEEE'))
                                         for chan in self.channels:
-                                                charitum.send_message(chan, "{} opened a new thread: [https://hightechlowlife.eu/board/{}]".format(user, url))
-                                                charitum.send_message(chan, "   " + format.color(title, format.GREEN))
+                                                self.send_ctcp(chan, "ACTION", ["{} opened a new thread: [https://hightechlowlife.eu/board/{}]".format(user, url)])
+                                                self.send_ctcp(chan, "ACTION", ["   " + format.color(title, format.GREEN)])
 
-                        print("--")
                         t = time.time()
                         while time.time() < t+1:
                                 asyncore.loop(timeout=1, count=1)
