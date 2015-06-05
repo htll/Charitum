@@ -250,7 +250,8 @@ class Charitum( bot.SimpleBot ):
 
                         t = time.time()
                         while time.time() < t+1:
-                                asyncore.loop(timeout=1, count=1)
+                                asyncore.loop(count=1)
+                        time.sleep(0.4)
                         if i > 4:
                                 for chan in self.channels:
                                         self.execute("NAMES", chan) # update permissions
