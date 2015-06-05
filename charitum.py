@@ -14,10 +14,10 @@ __license__ = "BEER-Ware license"
 __version__ = "1.4.4"
 
 import re
-import sys
 import json
 import time
 import signal
+import argparse
 import requests
 import asyncore
 from bs4 import BeautifulSoup
@@ -29,9 +29,9 @@ from ircutils import bot, format, protocol
 # event handling seems to be broken
 
 def callback_shutdown( signal, frame ):
-        # put stuff for gracefull stop here
+        import sys
         print( "\nShutting down...\n" )
-        sys.exit( 0 )
+        sys.exit(0)
 
 ############################# UTILS #################################
 
@@ -56,7 +56,7 @@ def cmd_say( self, command, params, event, received="channel" ):
         """ {0}!X!- Send text to the shoutbox
                 {0} <TEXT>!X!- Say <TEXT> in the shoutbox"""
 
-        self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=' '.join(params), color='EEEEEE'))
+        self.session.post(self.base + "/taigachat/post.json", params=dict(self.params, message=' '.join(params), color='EEEEEE'))
 
 def cmd_mutesb( self, command, params, event, received="channel" ):
         """ {0}!X!- Toggle the shoutbox echo for this channel
@@ -178,33 +178,32 @@ class Charitum( bot.SimpleBot ):
         channelusers = {}
         access = dict( ( ([ '', '+', '%', '@', '&', '~' ])[num] , num ) for num in range( 6 ) )
 
-        def setup_shouty( self, username, password ):
-            regex = re.compile(r'name="_xfToken" value="([^"]+)"')
+        def run( self, username, password, base, log_threads=True ):
+                regex = re.compile(r'name="_xfToken" value="([^"]+)"')
 
-            self.session = requests.session()
-            res = self.session.post("https://hightechlowlife.eu/board/login/login", params={"login": username, "password": password})
-            res = self.session.get ("https://hightechlowlife.eu/board/forums")
+                self.session = requests.session()
+                res = self.session.post(base + "/login/login", params={"login": username, "password": password})
+                res = self.session.get (base + "/forums")
 
-            token = regex.findall(res.text)[0]
+                token = regex.findall(res.text)[0]
 
-            self.params = {
-                "sidebar": 0,
-                "lastrefresh": 0,
-                "fake": 0,
-                "room": 2,
-                "_xfRequestUri": "/board/forums/",
-                "_xfNoRedirect": 1,
-                "_xfToken": token,
-                "_xfResponseType": "json"
-            }
+                self.base = base
+                self.params = {
+                    "sidebar": 0,
+                    "lastrefresh": 0,
+                    "fake": 0,
+                    "room": 2,
+                    "_xfRequestUri": "/board/forums/",
+                    "_xfNoRedirect": 1,
+                    "_xfToken": token,
+                    "_xfResponseType": "json"
+                }
 
-            self.muted = {}
-
-        def run( self ):
                 i = 0
                 old_threads = []
+                self.muted = {}
 
-                res = self.session.get("https://hightechlowlife.eu/board/forums")
+                res = self.session.get(base + "/forums")
                 soup = BeautifulSoup(res.text)
                 for thread in soup.find_all("li", class_="discussionListItem"):
                         url = thread.find(class_="PreviewTooltip")["href"]
@@ -217,7 +216,7 @@ class Charitum( bot.SimpleBot ):
 
                 while True:
                         i += 1
-                        res = self.session.post("https://hightechlowlife.eu/board/taigachat/list.json", params=self.params)
+                        res = self.session.post(base + "/taigachat/list.json", params=self.params)
                         result = json.loads(res.text)
                         self.params["lastrefresh"] = result["lastrefresh"]
                         soup = BeautifulSoup( result["templateHtml"] )
@@ -231,22 +230,22 @@ class Charitum( bot.SimpleBot ):
                                         for chan in self.channels:
                                                 if (chan not in self.muted) or (not self.muted[chan]):
                                                         self.send_ctcp(chan, "ACTION", ["{}: {}".format(format.color(name, format.RED), message)])
+                        if log_threads:
+                                res = self.session.get(base + "/forums")
+                                soup = BeautifulSoup(res.text)
+                                for thread in soup.find_all("li", class_="discussionListItem"):
+                                        url = thread.find(class_="PreviewTooltip")["href"]
+                                        user = thread.find(class_="username").text
+                                        title = thread.find(class_="PreviewTooltip").text
+                                        posts = thread.find("dl", class_="major").find("dd").text
 
-                        res = self.session.get("https://hightechlowlife.eu/board/forums")
-                        soup = BeautifulSoup(res.text)
-                        for thread in soup.find_all("li", class_="discussionListItem"):
-                                url = thread.find(class_="PreviewTooltip")["href"]
-                                user = thread.find(class_="username").text
-                                title = thread.find(class_="PreviewTooltip").text
-                                posts = thread.find("dl", class_="major").find("dd").text
-
-                                if posts == "0" and not url in old_threads:
-                                        old_threads.append(url)
-                                        shoutytext = "a new thread was posted by {}: [URL=https://hightechlowlife.eu/board/{}]{}[/URL]".format(user, url, title)
-                                        self.session.post("https://hightechlowlife.eu/board/taigachat/post.json", params=dict(self.params, message=shoutytext, color='EEEEEE'))
-                                        for chan in self.channels:
-                                                self.send_ctcp(chan, "ACTION", ["{} opened a new thread: [https://hightechlowlife.eu/board/{}]".format(user, url)])
-                                                self.send_ctcp(chan, "ACTION", ["   " + format.color(title, format.GREEN)])
+                                        if posts == "0" and not url in old_threads:
+                                                old_threads.append(url)
+                                                shoutytext = "a new thread was posted by {}: [URL={}/{}]{}[/URL]".format(user, base, url, title)
+                                                self.session.post(base + "/taigachat/post.json", params=dict(self.params, message=shoutytext, color='EEEEEE'))
+                                                for chan in self.channels:
+                                                        self.send_ctcp(chan, "ACTION", ["{} opened a new thread: [{}/{}]".format(user, base, url)])
+                                                        self.send_ctcp(chan, "ACTION", ["   " + format.color(title, format.GREEN)])
 
                         t = time.time()
                         while time.time() < t+1:
@@ -379,19 +378,54 @@ banners = {
 ############################### RUN #################################
 
 if __name__ == "__main__":
-        charitum = Charitum( "Charitum" )
-        charitum.setup_shouty( sys.argv[1], sys.argv[2] )
-        charitum.connect( "irc.p2p-network.net", channel=sys.argv[3:] )
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+                "-n", "--nick", default="Charitum",
+                help="IRC nickname"
+        )
+        parser.add_argument(
+                "-s", "--server", default="irc.p2p-network.net",
+                help="IRC server to connect to"
+        )
+        parser.add_argument(
+                "-u", "--user",
+                help="user account name for taigachat bindings"
+        )
+        parser.add_argument(
+                "-p", "--pass", metavar="PASS", dest="passw",
+                help="user password for taigachat bindings"
+        )
+        parser.add_argument(
+                "--board-url", default="https://hightechlowlife.eu/board",
+                help="the Board's root URL (only used with -u and -p)"
+        )
+        parser.add_argument(
+                "--no-threads", action="store_false", dest="log_threads",
+                help="do not check for new threads"
+        )
+        parser.add_argument(
+                "channel", nargs="+",
+                help="channels to join"
+        )
+        args = parser.parse_args()
+
+        charitum = Charitum( args.nick )
+        charitum.connect( "irc.p2p-network.net", channel=args.channel )
         # charitum.add_command( "execute", "~", cmd_exec, "exec" )
-        charitum.add_command( "say", "@", cmd_say, "!" )
         charitum.add_command( "shout", "@", cmd_shout, "!!" )
         charitum.add_command( "kick", "@", cmd_kick )
         charitum.add_command( "op", "@", cmd_op )
         charitum.add_command( "banner", "", cmd_banner )
         charitum.add_command( "update", "", cmd_update, "upd" )
         charitum.add_command( "help", "", cmd_help )
-        charitum.add_command( "mutesb", "", cmd_mutesb )
+        if args.user and args.passw:
+            charitum.add_command( "mutesb", "", cmd_mutesb )
+            charitum.add_command( "say", "@", cmd_say, "!" )
 
         signal.signal( signal.SIGINT,  callback_shutdown ) # register graceful shutdown here
 
-        charitum.run()
+        if args.user and args.passw:
+            print("Starting with taigachat bridge enabled")
+            charitum.run(args.user, args.passw, args.board_url.rstrip("/"), log_threads=args.log_threads)
+        else:
+            charitum.start()
