@@ -44,6 +44,9 @@ def format_command( command, received ):
 
 ############################# COMMANDS ##############################
 
+def cmd_color( self, command, params, event ):
+    self.colors[self.currentNick] = params[0]
+
 def cmd_exec( self, command, params, event, received="channel" ):
     """ {0}!X!- Execute an IRC command
         {0} <COMMAND> <[PARAMS]>!X!- Execute the IRC command <COMMAND> with parameters <PARAMS>"""
@@ -56,7 +59,13 @@ def cmd_say( self, command, params, event, received="channel" ):
     """ {0}!X!- Send text to the shoutbox
         {0} <TEXT>!X!- Say <TEXT> in the shoutbox"""
 
-    self.session.post(self.base + "/taigachat/post.json", params=dict(self.params, message=' '.join(params), color='EEEEEE'))
+    if not self.currentNick in self.colors.keys():
+        color = self.colors["default"]
+    else:
+        color = self.colors[self.currentNick]
+    strMessage = "[color=#2F6FA3]" + self.currentNick + "[/color]: "
+    strMessage += "[color=" + color + "]" + " ".join(params) + "[/color]"
+    self.session.post(self.base + "/taigachat/post.json", params=dict(self.params, message= strMessage))
 
 def cmd_mutesb( self, command, params, event, received="channel" ):
     """ {0}!X!- Toggle the shoutbox echo for this channel
@@ -300,6 +309,7 @@ class Charitum( bot.SimpleBot ):
         message = event.message.split()
         command = message[0]
         params  = message[1:]
+        self.currentNick = event.source
 
         if event.source not in self.tell:
             self.tell[event.source] = False
@@ -412,12 +422,17 @@ if __name__ == "__main__":
     signal.signal( signal.SIGINT,  callback_shutdown ) # register graceful shutdown here
 
     charitum = Charitum( args.nick )
+
+    charitum.colors = { "default" : "#EEEEEE" }
+    charitum.currentNick = ""
+
     charitum.add_command( "shout", "@", cmd_shout, "!!" )
     charitum.add_command( "kick", "@", cmd_kick )
     charitum.add_command( "op", "@", cmd_op )
     charitum.add_command( "banner", "", cmd_banner )
     charitum.add_command( "update", "", cmd_update, "upd" )
     charitum.add_command( "help", "", cmd_help )
+    charitum.add_command( "color", "", cmd_color )
     # charitum.add_command( "execute", "~", cmd_exec, "exec" )
 
     charitum.connect( "irc.p2p-network.net", channel=args.channel )
