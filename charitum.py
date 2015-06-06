@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-"""Charitum.py: an extensible IRC bot"""
+"""charitum.py: an extensible IRC bot"""
 
-# ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
 # <s0lll0s@blinkenshell.org> wrote this file. As long as you retain this notice you
 # can do whatever you want with this stuff. If we meet some day, and you think
@@ -44,19 +43,31 @@ def format_command( command, received ):
 
 ############################# COMMANDS ##############################
 
+def cmd_color( self, command, params, event ):
+    if re.match(r"^([a-zA-Z]+|#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}))+$", params[0]):
+        self.colors[event.source] = params[0]
+    else:
+        self.send_message( event.target, format.color( "ERROR:", format.RED ) + " not a valid color: '{}'".format(params[0])
+
 def cmd_exec( self, command, params, event, received="channel" ):
     """ {0}!X!- Execute an IRC command
         {0} <COMMAND> <[PARAMS]>!X!- Execute the IRC command <COMMAND> with parameters <PARAMS>"""
 
     self.execute( params[0].upper(), ' '.join( params[1:] ).strip() )
     if received == "private":
-        self.send_message( event.source, "Executed" + format.bold( params[0].upper() + ' '.join( params[1:] ) ) )
+        self.send_message( event.source, "Executed {}".format(format.bold(params[0].upper() + ' '.join(params[1:]))) )
 
 def cmd_say( self, command, params, event, received="channel" ):
     """ {0}!X!- Send text to the shoutbox
         {0} <TEXT>!X!- Say <TEXT> in the shoutbox"""
 
-    self.session.post(self.base + "/taigachat/post.json", params=dict(self.params, message=' '.join(params), color='EEEEEE'))
+    if not self.currentNick in self.colors.keys():
+        color = self.colors["default"]
+    else:
+        color = self.colors[event.source]
+    message = "[color=#2F6FA3]{}[/color]: ".format(event.source)
+    message += "[color={}]{}[/color]".format(color, " ".join(params))
+    self.session.post(self.base + "/taigachat/post.json", params=dict(self.params, message=message))
 
 def cmd_mutesb( self, command, params, event, received="channel" ):
     """ {0}!X!- Toggle the shoutbox echo for this channel
@@ -136,7 +147,7 @@ def cmd_kick( self, command, params, event, received="channel" ):
         {0} <USER>!X!- Kick <USER>
         {0} <USER> <CHANNEL>!X!- Kick <USER> from <CHANNEL> (/msg)"""
 
-    if len( params ) < 1 or params[0] == "Charitum":
+    if len( params ) < 1 or params[0] == self.nickname
         return
 
     channel = event.target
@@ -176,6 +187,8 @@ class Charitum( bot.SimpleBot ):
     commands = {}
     channelusers = {}
     access = dict( ( ([ '', '+', '%', '@', '&', '~' ])[num] , num ) for num in range( 6 ) )
+    colors = { "default": "#EEEEEE" }
+
 
     def run( self, username, password, base, log_threads=True ):
         regex = re.compile(r'name="_xfToken" value="([^"]+)"')
@@ -412,6 +425,7 @@ if __name__ == "__main__":
     signal.signal( signal.SIGINT,  callback_shutdown ) # register graceful shutdown here
 
     charitum = Charitum( args.nick )
+
     charitum.add_command( "shout", "@", cmd_shout, "!!" )
     charitum.add_command( "kick", "@", cmd_kick )
     charitum.add_command( "op", "@", cmd_op )
@@ -423,7 +437,8 @@ if __name__ == "__main__":
     charitum.connect( "irc.p2p-network.net", channel=args.channel )
     if args.user and args.passw:
         charitum.add_command( "mutesb", "", cmd_mutesb )
-        charitum.add_command( "say", "@", cmd_say, "!" )
+        charitum.add_command( "say", "", cmd_say, "!" )
+        charitum.add_command( "color", "", cmd_color )
 
     if args.user and args.passw:
         print("Starting with taigachat bridge enabled")
