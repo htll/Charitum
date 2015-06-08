@@ -67,7 +67,7 @@ def cmd_say( self, command, params, event, received="channel" ):
         color = self.colors[event.source]
     message = "[color=#2F6FA3]{}[/color]: ".format(event.source)
     message += "[color={}]{}[/color]".format(color, " ".join(params))
-    self.session.post(self.base + "/taigachat/post.json", params=dict(self.params, message=message))
+    self.session.post(self.base + "/taigachat/post.json", params=dict(self.params, message= message))
 
 def cmd_mutesb( self, command, params, event, received="channel" ):
     """ {0}!X!- Toggle the shoutbox echo for this channel
@@ -188,6 +188,7 @@ class Charitum( bot.SimpleBot ):
     channelusers = {}
     access = dict( ( ([ '', '+', '%', '@', '&', '~' ])[num] , num ) for num in range( 6 ) )
     colors = { "default": "#EEEEEE" }
+    currentNick = ""
 
 
     def run( self, username, password, base, log_threads=True ):
@@ -313,6 +314,7 @@ class Charitum( bot.SimpleBot ):
         message = event.message.split()
         command = message[0]
         params  = message[1:]
+        self.currentNick = event.source
 
         if event.source not in self.tell:
             self.tell[event.source] = False
