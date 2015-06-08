@@ -47,7 +47,7 @@ def cmd_color( self, command, params, event ):
     if re.match(r"^([a-zA-Z]+|#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}))+$", params[0]):
         self.colors[event.source] = params[0]
     else:
-        self.send_message( event.target, format.color( "ERROR:", format.RED ) + " not a valid color: '{}'".format(params[0])
+        self.send_message( event.target, format.color( "ERROR:", format.RED ) + " not a valid color: '{}'".format(params[0]) )
 
 def cmd_exec( self, command, params, event, received="channel" ):
     """ {0}!X!- Execute an IRC command
@@ -147,7 +147,7 @@ def cmd_kick( self, command, params, event, received="channel" ):
         {0} <USER>!X!- Kick <USER>
         {0} <USER> <CHANNEL>!X!- Kick <USER> from <CHANNEL> (/msg)"""
 
-    if len( params ) < 1 or params[0] == self.nickname
+    if len( params ) < 1 or params[0] == self.nickname:
         return
 
     channel = event.target
